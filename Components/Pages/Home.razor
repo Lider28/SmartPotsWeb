@@ -1,7 +1,86 @@
 ﻿@page "/"
+@using SmartPotsWeb.Models
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Smart Pots — Панель керування</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>🌱 Мої рослини</h1>
+        <button class="btn btn-outline-primary btn-sm" @onclick="OnInitializedAsync">
+            🔄 Оновити дані
+        </button>
+    </div>
 
-Welcome to your new app.
+    @if (lastTelemetry == null)
+    {
+        <div class="alert alert-info">
+            🛰 Даних від хаба ще не надходило. Очікуємо першого підключення...
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">🏠 Стан Хаба</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>🌡 Температура:</strong> @lastTelemetry.Temp °C</p>
+                        <p class="mb-1"><strong>💧 Вологість:</strong> @lastTelemetry.Hum %</p>
+                        <p class="mb-1"><strong>☀️ Світло:</strong> @lastTelemetry.Lux lux</p>
+                        <p class="mb-0">
+                            <strong>💡 Лампа:</strong> 
+                            <span class="badge @(lastTelemetry.LightOn ? "bg-success" : "bg-secondary")">
+                                @(lastTelemetry.LightOn ? "Увімкнено" : "Вимкнено")
+                            </span>
+                        </p>
+                        <hr />
+                        <small class="text-muted">Оновлено: @lastTelemetry.RecordedAt.ToLocalTime().ToString("HH:mm:ss")</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="row">
+                    @foreach (var pot in lastTelemetry.Pots)
+                    {
+                        <div class="col-sm-6 mb-3">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="card-title text-secondary">Горщик #@pot.Id</h6>
+                                    <div class="d-flex align-items-center">
+                                        <div class="display-6 me-3">🚿</div>
+                                        <div>
+                                            <div class="progress mb-2" style="width: 150px; height: 20px;">
+                                                <div class="progress-bar bg-info" role="progressbar" 
+                                                     style="width: @(pot.Moisture)%">
+                                                     @pot.Moisture%
+                                                </div>
+                                            </div>
+                                            <small class="text-muted">Ціль: @pot.Target%</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private HubTelemetry? lastTelemetry;
+
+    protected override async Task OnInitializedAsync()
+    {
+        lastTelemetry = await Db.HubTelemetries
+            .Include(h => h.Pots)
+            .OrderByDescending(h => h.RecordedAt)
+            .FirstOrDefaultAsync();
+    }
+}
