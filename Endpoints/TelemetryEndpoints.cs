@@ -1,4 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using SmartPotsWeb.Data;
 using SmartPotsWeb.Models;
 
 namespace SmartPotsWeb.Endpoints;
@@ -9,27 +12,28 @@ public static class TelemetryEndpoints
     {
         var group = app.MapGroup("/api/telemetry");
 
-        group.MapPost("/", async (AppDbContext db, [FromBody] HubTelemetry incomingData) =>
+        group.MapPost("/", async (AppDbContext db, [FromBody] HubTelemetry incomingData, IHubContext<TelemetryHub> hubContext) =>
         {
-            if (incomingData == null) return Results.BadRequest("Дані відсутні");
-
-            incomingData.RecordedAt = DateTime.UtcNow;
             var currentSeason = SeasonHelper.GetCurrentSeason();
 
-            foreach (var pot in incomingData.Pots)
+            foreach (var pt in incomingData.Pots)
             {
-                if (pot.PlantProfileId.HasValue)
+                var physicalPot = await db.Pots
+                    .Include(p => p.Profile)
+                    .FirstOrDefaultAsync(p => p.HardwareId == pt.HardwareId);
+
+                if (physicalPot != null)
                 {
-                    var profile = await db.PlantProfiles.FindAsync(pot.PlantProfileId);
-                    if (profile != null)
-                        pot.Target = profile.TargetSoilMoisture.GetFor(currentSeason);
+                    var settings = physicalPot.Profile.GetCurrentSettings(currentSeason);
+                    pt.Target = settings.SoilMoisture;
+                    pt.PlantProfileId = physicalPot.PlantProfileId;
                 }
             }
 
             db.HubTelemetries.Add(incomingData);
             await db.SaveChangesAsync();
-
-            return Results.Ok(new { message = "Дані збережено", timestamp = incomingData.RecordedAt });
+            await hubContext.Clients.All.SendAsync("ReceiveTelemetryUpdate", incomingData);
+            return Results.Ok();
         });
     }
 }

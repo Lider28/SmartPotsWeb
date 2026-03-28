@@ -1,6 +1,7 @@
-﻿namespace SmartPotsWeb.Models
+﻿namespace SmartPotsWeb.Data
 {
     public enum Season { Winter, Spring, Summer, Autumn }
+    public enum SeasonalityMode { Static, BiSeasonal, QuadSeasonal }
     public static class SeasonHelper
     {
         public static Season GetCurrentSeason() => DateTime.UtcNow.Month switch
@@ -11,5 +12,10 @@
             _ => Season.Autumn
         };
     }
-    public enum ProfileMode { Static, Auto }
+    public class SeasonalSettings
+    {
+        public int SoilMoisture { get; set; }
+        public int AirHumidity { get; set; }
+        public int LightLux { get; set; }
+    }
 }

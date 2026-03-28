@@ -5,6 +5,8 @@ using SmartPotsWeb.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSignalR();
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -23,6 +25,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+app.MapHub<TelemetryHub>("/telemetryHub");
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

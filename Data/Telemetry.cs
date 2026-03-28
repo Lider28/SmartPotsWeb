@@ -1,4 +1,4 @@
-﻿namespace SmartPotsWeb.Models;
+﻿namespace SmartPotsWeb.Data;
 
 public class HubTelemetry
 {
@@ -16,8 +16,7 @@ public class HubTelemetry
 public class PotTelemetry
 {
     public int Id { get; set; }
-
-    public int HubTelemetryId { get; set; }
+    public int HardwareId { get; set; }
     public HubTelemetry Hub { get; set; } = null!;
 
     public Guid? PlantProfileId { get; set; }
@@ -25,4 +24,15 @@ public class PotTelemetry
 
     public int Moisture { get; set; }
     public int Target { get; set; }
+}
+
+public class Pot
+{
+    public int Id { get; set; }
+    public string? Name { get; set; }
+    public DateTime? PlantingDate { get; set; }
+    public int? HardwareId { get; set; }
+
+    public Guid PlantProfileId { get; set; }
+    public PlantProfile Profile { get; set; } = null!;
 }
