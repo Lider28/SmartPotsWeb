@@ -30,5 +30,18 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapTelemetryEndpoints();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try
+    {
+        db.Database.Migrate();
+        Console.WriteLine("База даних успішно оновлена!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Помилка міграції: {ex.Message}");
+    }
+}
 
 app.Run();

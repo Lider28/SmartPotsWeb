@@ -17,6 +17,7 @@ public class PotTelemetry
 {
     public int Id { get; set; }
     public int HardwareId { get; set; }
+    public int HubTelemetryId { get; set; }
     public HubTelemetry Hub { get; set; } = null!;
 
     public Guid? PlantProfileId { get; set; }
