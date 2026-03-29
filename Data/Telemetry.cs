@@ -8,6 +8,7 @@ public class HubTelemetry
     public float Temp { get; set; }
     public float Hum { get; set; }
     public int Lux { get; set; }
+    public float DailyLuxHours { get; set; }
     public bool LightOn { get; set; }
     public bool HumidifierOn { get; set; }
 

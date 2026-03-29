@@ -67,6 +67,7 @@ public static class TelemetryEndpoints
                     Temp = h.Temp,
                     Hum = h.Hum,
                     Lux = h.Lux,
+                    DailyLuxHours = h.DailyLuxHours,
                     Pot = h.Pots.FirstOrDefault(p => p.HardwareId == hardwareId)
                 })
                 .ToListAsync();
@@ -77,7 +78,8 @@ public static class TelemetryEndpoints
                 HubHum: h.Hum,
                 HubLux: h.Lux,
                 Moisture: h.Pot?.Moisture ?? 0,
-                TargetMoisture: h.Pot?.Target ?? 0
+                TargetMoisture: h.Pot?.Target ?? 0,
+                DailyLuxHours: h.DailyLuxHours
             )).ToList();
 
             return Results.Ok(chartData);

@@ -6,7 +6,8 @@
         float HubHum,
         int HubLux,
         int Moisture,
-        int TargetMoisture
+        int TargetMoisture,
+        float DailyLuxHours
     );
 
     public record PotDto(
