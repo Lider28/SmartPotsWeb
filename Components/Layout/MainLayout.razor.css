@@ -52,7 +52,7 @@ main {
     }
 
     .sidebar {
-        width: auto;
+        width: 16rem;
         height: 100vh;
         position: sticky;
         top: 0;
