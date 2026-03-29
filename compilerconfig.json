@@ -1,0 +1,13 @@
+[
+  {
+    "outputFile": "wwwroot/css/app.css",
+    "inputFile": "scss/app.scss",
+    "options": {
+      "sourceMap": true,
+      "minify": {
+        "enabled": true,
+        "renameLocals": true
+      }
+    }
+  }
+]

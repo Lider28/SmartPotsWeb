@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Radzen;
 using SmartPotsWeb.Components;
 using SmartPotsWeb.Endpoints;
 using SmartPotsWeb.Models;
@@ -13,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddRadzenComponents();
 
 var app = builder.Build();
 

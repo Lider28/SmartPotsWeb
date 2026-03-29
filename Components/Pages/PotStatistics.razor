@@ -1,6 +1,10 @@
 ﻿@page "/stats/{HardwareId:int}"
+@rendermode InteractiveServer 
 @using Radzen.Blazor
-@inject HttpClient Http
+@using SmartPotsWeb.Data
+@using Microsoft.EntityFrameworkCore
+@using SmartPotsWeb.Models
+@inject AppDbContext Db
 
 <PageTitle>Статистика горщика</PageTitle>
 
@@ -96,22 +100,36 @@
     {
         try
         {
-            chartData = await Http.GetFromJsonAsync<List<PotChartPoint>>($"/api/telemetry/history/{HardwareId}?hours=24");
+            var cutoff = DateTime.Today.ToUniversalTime();
+
+            var history = await Db.HubTelemetries
+                .AsNoTracking()
+                .Where(h => h.RecordedAt >= cutoff && h.Pots.Any(p => p.HardwareId == HardwareId))
+                .OrderBy(h => h.RecordedAt)
+                .Select(h => new
+                {
+                    Timestamp = h.RecordedAt,
+                    Temp = h.Temp,
+                    Hum = h.Hum,
+                    Lux = h.Lux,
+                    Pot = h.Pots.FirstOrDefault(p => p.HardwareId == HardwareId)
+                })
+                .ToListAsync();
+
+            chartData = history.Select(h => new PotChartPoint(
+                Timestamp: h.Timestamp.ToLocalTime(),
+                HubTemp: h.Temp,
+                HubHum: h.Hum,
+                HubLux: h.Lux,
+                Moisture: h.Pot?.Moisture ?? 0,
+                TargetMoisture: h.Pot?.Target ?? 0
+            )).ToList();
+			Console.WriteLine($"Завантажено {chartData.Count} точок даних для порту {HardwareId}");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Помилка завантаження статистики: {ex.Message}");
-            chartData = new List<PotChartPoint>(); 
+            chartData = new List<PotChartPoint>();
         }
-    }
-
-    public class PotChartPoint
-    {
-        public DateTime Timestamp { get; set; }
-        public float HubTemp { get; set; }
-        public float HubHum { get; set; }
-        public int HubLux { get; set; }
-        public int Moisture { get; set; }
-        public int TargetMoisture { get; set; }
     }
 }

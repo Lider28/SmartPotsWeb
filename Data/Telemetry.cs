@@ -9,6 +9,7 @@ public class HubTelemetry
     public float Hum { get; set; }
     public int Lux { get; set; }
     public bool LightOn { get; set; }
+    public bool HumidifierOn { get; set; }
 
     public List<PotTelemetry> Pots { get; set; } = new();
 }
