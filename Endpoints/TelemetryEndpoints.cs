@@ -177,15 +177,26 @@ public static class TelemetryEndpoints
 
             if (pot == null)
                 return Results.NotFound(new { Message = "Горщик не знайдено" });
-            
 
-            db.Pots.Remove(pot);
+            try
+            {
+                db.Pots.Remove(pot);
 
-            if (pot.Profile != null)
-                db.PlantProfiles.Remove(pot.Profile);
+                if (pot.Profile != null)
+                    db.PlantProfiles.Remove(pot.Profile);
 
-            await db.SaveChangesAsync();
-            return Results.Ok();
+                await db.SaveChangesAsync();
+
+                return Results.Ok();
+            }
+            catch (Exception ex)
+            {
+                return Results.Conflict(new
+                {
+                    Message = "Не вдалося видалити горщик. Можливо, в базі збереглася історія телеметрії для нього.",
+                    Details = ex.Message
+                });
+            }
         });
     }
 }
