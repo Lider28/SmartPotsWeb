@@ -1,0 +1,117 @@
+﻿@page "/stats/{HardwareId:int}"
+@using Radzen.Blazor
+@inject HttpClient Http
+
+<PageTitle>Статистика горщика</PageTitle>
+
+<div class="container mt-4">
+    <h2>📊 Статистика (Порт @HardwareId)</h2>
+    <p class="text-muted">Дані за останні 24 години</p>
+
+    @if (chartData == null)
+    {
+        <div class="d-flex justify-content-center mt-5">
+            <div class="spinner-border text-success" role="status">
+                <span class="visually-hidden">Завантаження...</span>
+            </div>
+        </div>
+    }
+    else if (!chartData.Any())
+    {
+        <div class="alert alert-warning">Немає даних телеметрії для цього порту за обраний період.</div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">💧 Вологість ґрунту</h5>
+            </div>
+            <div class="card-body">
+                <RadzenChart>
+                    <RadzenLineSeries Data="@chartData" 
+                                      CategoryProperty="Timestamp" 
+                                      Title="Реальна вологість" 
+                                      ValueProperty="Moisture" 
+                                      Stroke="#0d6efd" 
+                                      Smooth="true" />
+                                      
+                    <RadzenLineSeries Data="@chartData" 
+                                      CategoryProperty="Timestamp" 
+                                      Title="Цільова вологість" 
+                                      ValueProperty="TargetMoisture" 
+                                      Stroke="#dc3545" 
+                                      LineType="LineType.Dashed" />
+
+                    <RadzenCategoryAxis Padding="20" FormatString="{0:HH:mm}">
+                        <RadzenAxisTitle Text="Час" />
+                    </RadzenCategoryAxis>
+                    
+                    <RadzenValueAxis Min="0" Max="100">
+                        <RadzenGridLines Visible="true" />
+                        <RadzenAxisTitle Text="Вологість %" />
+                    </RadzenValueAxis>
+                    
+                    <RadzenLegend Position="LegendPosition.Bottom" />
+                </RadzenChart>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">🌡 Мікроклімат (Хаб)</h5>
+            </div>
+            <div class="card-body">
+                <RadzenChart>
+                    <RadzenLineSeries Data="@chartData" 
+                                      CategoryProperty="Timestamp" 
+                                      Title="Температура (°C)" 
+                                      ValueProperty="HubTemp" 
+                                      Stroke="#fd7e14" />
+                                      
+                    <RadzenLineSeries Data="@chartData" 
+                                      CategoryProperty="Timestamp" 
+                                      Title="Вологість повітря (%)" 
+                                      ValueProperty="HubHum" 
+                                      Stroke="#20c997" />
+
+                    <RadzenCategoryAxis Padding="20" FormatString="{0:HH:mm}" />
+                    <RadzenValueAxis>
+                        <RadzenGridLines Visible="true" />
+                    </RadzenValueAxis>
+                    
+                    <RadzenLegend Position="LegendPosition.Bottom" />
+                </RadzenChart>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int HardwareId { get; set; }
+
+    private List<PotChartPoint>? chartData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            chartData = await Http.GetFromJsonAsync<List<PotChartPoint>>($"/api/telemetry/history/{HardwareId}?hours=24");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка завантаження статистики: {ex.Message}");
+            chartData = new List<PotChartPoint>(); 
+        }
+    }
+
+    public class PotChartPoint
+    {
+        public DateTime Timestamp { get; set; }
+        public float HubTemp { get; set; }
+        public float HubHum { get; set; }
+        public int HubLux { get; set; }
+        public int Moisture { get; set; }
+        public int TargetMoisture { get; set; }
+    }
+}

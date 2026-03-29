@@ -1,4 +1,6 @@
-﻿namespace SmartPotsWeb.Data
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace SmartPotsWeb.Data
 {
     public enum Season { Winter, Spring, Summer, Autumn }
     public enum SeasonalityMode { Static, BiSeasonal, QuadSeasonal }
@@ -12,6 +14,8 @@
             _ => Season.Autumn
         };
     }
+
+    [ComplexType]
     public class SeasonalSettings
     {
         public int SoilMoisture { get; set; }

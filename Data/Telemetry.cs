@@ -25,6 +25,8 @@ public class PotTelemetry
 
     public int Moisture { get; set; }
     public int Target { get; set; }
+    public int TargetAir { get; set; }
+    public int TargetLux { get; set; }
 }
 
 public class Pot
