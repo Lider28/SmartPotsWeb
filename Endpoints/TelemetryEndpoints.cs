@@ -178,24 +178,34 @@ public static class TelemetryEndpoints
             if (pot == null)
                 return Results.NotFound(new { Message = "Горщик не знайдено" });
 
+            using var transaction = await db.Database.BeginTransactionAsync();
             try
             {
-                db.Pots.Remove(pot);
+                var historyToDelete = await db.Set<PotTelemetry>()
+                    .Where(pt => pt.HardwareId == hardwareId)
+                    .ToListAsync();
 
-                if (pot.Profile != null)
-                    db.PlantProfiles.Remove(pot.Profile);
-
+                db.Set<PotTelemetry>().RemoveRange(historyToDelete);
                 await db.SaveChangesAsync();
 
-                return Results.Ok();
+                db.Pots.Remove(pot);
+                if (pot.Profile != null)
+                {
+                    db.PlantProfiles.Remove(pot.Profile);
+                }
+
+                await db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Results.Ok(new { Message = "Горщик та вся його історія успішно видалені" });
             }
             catch (Exception ex)
             {
-                return Results.Conflict(new
-                {
-                    Message = "Не вдалося видалити горщик. Можливо, в базі збереглася історія телеметрії для нього.",
-                    Details = ex.Message
-                });
+                await transaction.RollbackAsync();
+                return Results.Problem(
+                    detail: ex.Message,
+                    title: "Помилка при видаленні даних з бази"
+                );
             }
         });
     }
