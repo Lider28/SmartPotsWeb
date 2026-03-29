@@ -37,12 +37,18 @@ public static class TelemetryEndpoints
             db.HubTelemetries.Add(incomingData);
             await db.SaveChangesAsync();
             await hubContext.Clients.All.SendAsync("ReceiveTelemetryUpdate", incomingData);
-            var responseForEsp = incomingData.Pots.Select(p => new {
-                port = p.HardwareId,
-                targetSoil = p.Target,
-                targetAir = p.TargetAir,
-                targetLux = p.TargetLux
-            });
+
+            var responseForEsp = new
+            {
+                lightOn = incomingData.LightOn,
+                humidifierOn = incomingData.HumidifierOn,
+                pots = incomingData.Pots.Select(p => new {
+                    port = p.HardwareId,
+                    targetSoil = p.Target,
+                    targetAir = p.TargetAir,
+                    targetLux = p.TargetLux
+                })
+            };
 
             return Results.Ok(responseForEsp);
         });
