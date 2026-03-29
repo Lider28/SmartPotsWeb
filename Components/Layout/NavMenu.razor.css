@@ -95,7 +95,6 @@
     }
 
     .nav-scrollable {
-        width: auto;
         /* Never collapse the sidebar for wide screens */
         display: block;
 
