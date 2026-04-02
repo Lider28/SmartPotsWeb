@@ -37,7 +37,7 @@ public class Pot
     public string? Name { get; set; }
     public DateTime? PlantingDate { get; set; }
     public int? HardwareId { get; set; }
-
+    public string? PhotoUrl { get; set; }
     public Guid PlantProfileId { get; set; }
     public PlantProfile Profile { get; set; } = null!;
 }

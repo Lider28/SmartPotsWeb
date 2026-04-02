@@ -154,6 +154,7 @@ public static class TelemetryEndpoints
                 Id: p.Id,
                 Name: p.Name,
                 HardwareId: p.HardwareId,
+                PhotoUrl: p.PhotoUrl,
                 Profile: new PlantProfileDto(
                     Id: p.Profile.Id.ToString(),
                     Name: p.Name ?? "",
@@ -207,6 +208,34 @@ public static class TelemetryEndpoints
                     title: "Помилка при видаленні даних з бази"
                 );
             }
+        });
+
+        app.MapPost("/api/pots/{hardwareId:int}/image", async (int hardwareId, IFormFile file, AppDbContext db, IWebHostEnvironment env) =>
+        {
+            if (file == null || file.Length == 0)
+                return Results.BadRequest("Файл порожній");
+
+            var pot = await db.Pots.Include(p => p.Profile).FirstOrDefaultAsync(p => p.HardwareId == hardwareId);
+            if (pot == null) return Results.NotFound();
+
+            var uploadsFolder = Path.Combine(env.WebRootPath, "images", "pots");
+            Directory.CreateDirectory(uploadsFolder);
+
+            var fileExtension = Path.GetExtension(file.FileName);
+            var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var relativeUrl = $"/images/pots/{uniqueFileName}";
+
+            pot.PhotoUrl = relativeUrl;
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { url = relativeUrl });
         });
     }
 }

@@ -14,6 +14,7 @@
         int Id,
         string Name,
         int? HardwareId,
+        string? PhotoUrl,
         PlantProfileDto Profile
     );
 
