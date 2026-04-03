@@ -36,6 +36,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddRadzenComponents();
+builder.Services.AddSingleton<TelemetryBuffer>();
 
 var app = builder.Build();
 

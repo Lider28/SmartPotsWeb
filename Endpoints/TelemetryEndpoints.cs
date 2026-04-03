@@ -12,9 +12,16 @@ public static class TelemetryEndpoints
     {
         var group = app.MapGroup("/api/telemetry");
 
-        group.MapPost("/", async (AppDbContext db, [FromBody] HubTelemetry incomingData, IHubContext<TelemetryHub> hubContext) =>
+        group.MapPost("/", async (
+            AppDbContext db,
+            [FromBody] HubTelemetry incomingData,
+            IHubContext<TelemetryHub> hubContext,
+            TelemetryBuffer buffer) =>
         {
+            var now = DateTime.UtcNow;
             var currentSeason = SeasonHelper.GetCurrentSeason();
+            incomingData.RecordDate = DateOnly.FromDateTime(now);
+            incomingData.MinuteOfDay = now.Hour * 60 + now.Minute;
 
             foreach (var pt in incomingData.Pots)
             {
@@ -25,24 +32,54 @@ public static class TelemetryEndpoints
                 if (physicalPot != null)
                 {
                     var settings = physicalPot.Profile.GetCurrentSettings(currentSeason);
-
                     pt.Target = settings.SoilMoisture;
                     pt.TargetAir = settings.AirHumidity;
                     pt.TargetLux = settings.LightLux;
-
                     pt.PlantProfileId = physicalPot.PlantProfileId;
                 }
             }
 
-            db.HubTelemetries.Add(incomingData);
+            var currentState = await db.CurrentHubStates.FirstOrDefaultAsync(s => s.Id == 1);
+            if (currentState == null)
+            {
+                currentState = new CurrentHubState { Id = 1 };
+                db.CurrentHubStates.Add(currentState);
+            }
+
+            currentState.PreviousTemp = currentState.CurrentTemp;
+            currentState.PreviousHum = currentState.CurrentHum;
+            currentState.PreviousLux = currentState.CurrentLux;
+
+            currentState.CurrentTemp = incomingData.Temp;
+            currentState.CurrentHum = incomingData.Hum;
+            currentState.CurrentLux = incomingData.Lux;
+            currentState.LastUpdatedAt = now;
+
             await db.SaveChangesAsync();
-            await hubContext.Clients.All.SendAsync("ReceiveTelemetryUpdate", incomingData);
+
+            if (TelemetryHub.HasViewers)
+            {
+                await hubContext.Clients.All.SendAsync("ReceiveTelemetryUpdate", incomingData);
+            }
+
+            buffer.AddReading(incomingData);
+
+            if (now.Minute == 0 && now.Second < 10 && !TelemetryHub.HasViewers)
+            {
+                var hourlyAverage = buffer.CalculateAverageAndClear();
+                if (hourlyAverage != null)
+                {
+                    db.HubTelemetries.Add(hourlyAverage);
+                    await db.SaveChangesAsync();
+                }
+            }
 
             var responseForEsp = new
             {
                 lightOn = incomingData.LightOn,
                 humidifierOn = incomingData.HumidifierOn,
-                pots = incomingData.Pots.Select(p => new {
+                pots = incomingData.Pots.Select(p => new
+                {
                     port = p.HardwareId,
                     targetSoil = p.Target,
                     targetAir = p.TargetAir,
@@ -53,17 +90,24 @@ public static class TelemetryEndpoints
             return Results.Ok(responseForEsp);
         });
 
+
         group.MapGet("/history/{hardwareId:int}", async (AppDbContext db, int hardwareId, [FromQuery] int hours = 24) =>
         {
-            var cutoff = DateTime.UtcNow.AddHours(-hours);
+            var cutoffDateTime = DateTime.UtcNow.AddHours(-hours);
+            var cutoffDate = DateOnly.FromDateTime(cutoffDateTime);
+            var cutoffMinute = cutoffDateTime.Hour * 60 + cutoffDateTime.Minute;
 
             var history = await db.HubTelemetries
                 .AsNoTracking()
-                .Where(h => h.RecordedAt >= cutoff && h.Pots.Any(p => p.HardwareId == hardwareId))
-                .OrderBy(h => h.RecordedAt)
+                .Where(h =>
+                    (h.RecordDate > cutoffDate) ||
+                    (h.RecordDate == cutoffDate && h.MinuteOfDay >= cutoffMinute))
+                .Where(h => h.Pots.Any(p => p.HardwareId == hardwareId))
+                .OrderBy(h => h.RecordDate)
+                .ThenBy(h => h.MinuteOfDay)
                 .Select(h => new
                 {
-                    Timestamp = h.RecordedAt,
+                    Timestamp = h.RecordDate.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(h.MinuteOfDay))),
                     Temp = h.Temp,
                     Hum = h.Hum,
                     Lux = h.Lux,

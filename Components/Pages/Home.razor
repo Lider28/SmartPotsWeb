@@ -11,144 +11,170 @@
 <PageTitle>Оранжерея — Панель керування</PageTitle>
 
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-end mb-5">
-        <div>
-            <h1 class="display-4 fw-bold mb-1" style="color: #1b4332;">Оранжерея</h1>
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge @(hubConnection?.State == HubConnectionState.Connected ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger") rounded-pill px-3">
-                    ● @(hubConnection?.State == HubConnectionState.Connected ? "Система онлайн" : "Підключення...")
-                </span>
-            </div>
-        </div>
-        <div class="d-flex gap-3">
-            <button class="btn-modern secondary shadow-sm" @onclick="LoadDataFromDb">🔄</button>
-            <a href="/add-pot" class="btn-modern primary shadow-sm">➕ Додати горщик</a>
-        </div>
-    </div>
+	<div class="d-flex justify-content-between align-items-end mb-5">
+		<div>
+			<h1 class="display-4 fw-bold mb-1" style="color: #1b4332;">Оранжерея</h1>
+			<div class="d-flex align-items-center gap-2">
+				<span class="badge @(hubConnection?.State == HubConnectionState.Connected ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger") rounded-pill px-3">
+					● @(hubConnection?.State == HubConnectionState.Connected ? "Система онлайн" : "Підключення...")
+				</span>
+			</div>
+		</div>
+		<div class="d-flex gap-3">
+			<button class="btn-modern secondary shadow-sm" @onclick="LoadDataFromDb">🔄</button>
+			<a href="/add-pot" class="btn-modern primary shadow-sm">➕ Додати горщик</a>
+		</div>
+	</div>
 
-    @if (lastTelemetry != null)
-    {
-        <div class="row mb-5">
-            <div class="col-12">
-                <div class="hub-panel p-4 shadow-sm d-flex justify-content-around align-items-center">
-                    <div class="text-center">
-                        <div class="card-label">Температура</div>
-                        <div class="fs-3 fw-bold">@lastTelemetry.Temp.ToString("F1")°C</div>
-                    </div>
+	@if (lastTelemetry != null)
+	{
+		<div class="row mb-5">
+			<div class="col-12">
+				<div class="hub-panel p-4 shadow-sm d-flex justify-content-around align-items-center">
+					<div class="text-center">
+						<div class="card-label">Температура</div>
+						<div class="fs-3 fw-bold">@lastTelemetry.Temp.ToString("F1")°C</div>
+					</div>
 
-                    <div class="vr opacity-25" style="height: 40px;"></div>
+					<div class="vr opacity-25" style="height: 40px;"></div>
 
-                    <div class="text-center">
-                        <div class="card-label">Світло</div>
-                        <div class="fs-3 fw-bold">@lastTelemetry.Lux <small class="opacity-50 fs-6">lx</small></div>
-                    </div>
+					<div class="text-center">
+						<div class="card-label">Світло</div>
+						<div class="fs-3 fw-bold">@lastTelemetry.Lux <small class="opacity-50 fs-6">lx</small></div>
+					</div>
 
-                    <div class="vr opacity-25" style="height: 40px;"></div>
+					<div class="vr opacity-25" style="height: 40px;"></div>
 
-                    <div class="text-center">
-                        <div class="card-label">Фітолампа</div>
-                        <div class="mt-2">
-                            <span class="badge rounded-pill @(lastTelemetry.LightOn ? "bg-warning text-dark" : "bg-light text-muted") px-3">
-                                @(lastTelemetry.LightOn ? "УВІМКНЕНО ☀️" : "ВИМКНЕНО")
-                            </span>
-                        </div>
-                    </div>
+					<div class="text-center">
+						<div class="card-label">Фітолампа</div>
+						<div class="mt-2">
+							<span class="badge rounded-pill @(lastTelemetry.LightOn ? "bg-warning text-dark" : "bg-light text-muted") px-3">
+								@(lastTelemetry.LightOn ? "УВІМКНЕНО ☀️" : "ВИМКНЕНО")
+							</span>
+						</div>
+					</div>
 
-                    <div class="vr opacity-25" style="height: 40px;"></div>
+					<div class="vr opacity-25" style="height: 40px;"></div>
 
-                    <div class="text-center">
-                        <div class="card-label">Зволожувач</div>
-                        <div class="mt-2">
-                            <span class="badge rounded-pill @(lastTelemetry.HumidifierOn ? "bg-info text-white" : "bg-light text-muted") px-3 shadow-sm">
-                                @(lastTelemetry.HumidifierOn ? "ПРАЦЮЄ 💧" : "ВИМКНЕНО")
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+					<div class="text-center">
+						<div class="card-label">Зволожувач</div>
+						<div class="mt-2">
+							<span class="badge rounded-pill @(lastTelemetry.HumidifierOn ? "bg-info text-white" : "bg-light text-muted") px-3 shadow-sm">
+								@(lastTelemetry.HumidifierOn ? "ПРАЦЮЄ 💧" : "ВИМКНЕНО")
+							</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
-        <div class="row g-4">
-            @foreach (var pot in lastTelemetry.Pots)
-            {
-                var isDry = pot.Moisture < pot.Target - 5;
+		<div class="row g-4">
+			@foreach (var pot in lastTelemetry.Pots)
+			{
+				var isDry = pot.Moisture < pot.Target - 5;
 
-                <div class="col-lg-4 col-md-6">
-                    <div class="plant-card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="card-label">ПОРТ #@pot.HardwareId</div>
-                                <h2 class="fw-bold mt-1 mb-0">@(GetPotName(pot.HardwareId))</h2>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <a href="/stats/@pot.HardwareId" class="text-decoration-none fs-4">📊</a>
-                            </div>
-                        </div>
+				<div class="col-lg-4 col-md-6">
+					<div class="plant-card">
+						<div class="d-flex justify-content-between align-items-start">
+							<div>
+								<div class="card-label">ПОРТ #@pot.HardwareId</div>
+								<h2 class="fw-bold mt-1 mb-0">@(GetPotName(pot.HardwareId))</h2>
+							</div>
+							<div class="d-flex gap-2">
+								<a href="/stats/@pot.HardwareId" class="text-decoration-none fs-4">📊</a>
+							</div>
+						</div>
 
-                        <div class="moisture-value">
-                            @pot.Moisture<span>%</span>
-                        </div>
+						<div class="moisture-value">
+							@pot.Moisture<span>%</span>
+						</div>
 
-                        <div class="progress progress-eco mb-4">
-                            <div class="progress-bar @(isDry ? "bg-danger" : "bg-success")"
-                                 style="width: @pot.Moisture%"></div>
-                        </div>
+						<div class="progress progress-eco mb-4">
+							<div class="progress-bar @(isDry ? "bg-danger" : "bg-success")"
+								 style="width: @pot.Moisture%"></div>
+						</div>
 
-                        <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
-                            <span class="text-muted small">Ціль: <strong>@pot.Target%</strong></span>
-                            <a href="/edit-pot/@pot.HardwareId" class="btn-modern secondary py-2 px-3 fs-6">
-                                Налаштувати ⚙️
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    }
+						<div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+							<span class="text-muted small">Ціль: <strong>@pot.Target%</strong></span>
+							<a href="/edit-pot/@pot.HardwareId" class="btn-modern secondary py-2 px-3 fs-6">
+								Налаштувати ⚙️
+							</a>
+						</div>
+					</div>
+				</div>
+			}
+		</div>
+	}
 </div>
 
 @code {
-    private HubTelemetry? lastTelemetry;
-    private HubConnection? hubConnection;
-    private Dictionary<int, string> potNames = new();
+	private HubTelemetry? lastTelemetry;
+	private HubConnection? hubConnection;
+	private Dictionary<int, string> potNames = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        var pots = await Db.Pots.Where(p => p.HardwareId.HasValue).ToListAsync();
-        foreach (var p in pots)
-        {
-            if (p.HardwareId.HasValue) potNames[p.HardwareId.Value] = p.Name ?? "Без імені";
-        }
+	protected override async Task OnInitializedAsync()
+	{
+		var pots = await Db.Pots.Where(p => p.HardwareId.HasValue).ToListAsync();
+		foreach (var p in pots)
+		{
+			if (p.HardwareId.HasValue) potNames[p.HardwareId.Value] = p.Name ?? "Без імені";
+		}
 
-        await LoadDataFromDb();
+		await LoadDataFromDb();
 
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(Nav.ToAbsoluteUri("/telemetryHub"))
-            .WithAutomaticReconnect()
-            .Build();
+		hubConnection = new HubConnectionBuilder()
+			.WithUrl(Nav.ToAbsoluteUri("/telemetryHub"))
+			.WithAutomaticReconnect()
+			.Build();
 
-        hubConnection.On<HubTelemetry>("ReceiveTelemetryUpdate", (data) =>
-        {
-            lastTelemetry = data;
-            InvokeAsync(StateHasChanged);
-        });
+		hubConnection.On<HubTelemetry>("ReceiveTelemetryUpdate", (data) =>
+		{
+			lastTelemetry = data;
+			InvokeAsync(StateHasChanged);
+		});
 
-        await hubConnection.StartAsync();
-    }
+		await hubConnection.StartAsync();
+	}
 
-    private string GetPotName(int hardwareId) =>
-        potNames.TryGetValue(hardwareId, out var name) ? name : "Невідомий горщик";
+	private string GetPotName(int hardwareId) =>
+		potNames.TryGetValue(hardwareId, out var name) ? name : "Невідомий горщик";
 
-    private async Task LoadDataFromDb()
-    {
-        lastTelemetry = await Db.HubTelemetries
-            .Include(h => h.Pots)
-            .OrderByDescending(h => h.RecordedAt)
-            .FirstOrDefaultAsync();
-    }
+	private async Task LoadDataFromDb()
+	{
+		var currentState = await Db.CurrentHubStates.FirstOrDefaultAsync(s => s.Id == 1);
 
-    public async ValueTask DisposeAsync()
-    {
-        if (hubConnection is not null) await hubConnection.DisposeAsync();
-    }
+		if (currentState != null)
+		{
+			var lastHistoryWithPots = await Db.HubTelemetries
+				.Include(h => h.Pots)
+				.OrderByDescending(h => h.RecordDate)
+				.ThenByDescending(h => h.MinuteOfDay)
+				.FirstOrDefaultAsync();
+
+			lastTelemetry = new HubTelemetry
+			{
+				RecordDate = DateOnly.FromDateTime(currentState.LastUpdatedAt),
+				MinuteOfDay = currentState.LastUpdatedAt.Hour * 60 + currentState.LastUpdatedAt.Minute,
+				Temp = currentState.CurrentTemp,
+				Hum = currentState.CurrentHum,
+				Lux = currentState.CurrentLux,
+				LightOn = lastHistoryWithPots?.LightOn ?? false,
+				HumidifierOn = lastHistoryWithPots?.HumidifierOn ?? false,
+				Pots = lastHistoryWithPots?.Pots ?? new List<PotTelemetry>()
+			};
+		}
+		else
+		{
+			lastTelemetry = await Db.HubTelemetries
+				.Include(h => h.Pots)
+				.OrderByDescending(h => h.RecordDate)
+				.ThenByDescending(h => h.MinuteOfDay)
+				.FirstOrDefaultAsync();
+		}
+	}
+
+	public async ValueTask DisposeAsync()
+	{
+		if (hubConnection is not null) await hubConnection.DisposeAsync();
+	}
 }

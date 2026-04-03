@@ -3,7 +3,8 @@
 public class HubTelemetry
 {
     public int Id { get; set; }
-    public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
+    public DateOnly RecordDate { get; set; }
+    public int MinuteOfDay { get; set; }
 
     public float Temp { get; set; }
     public float Hum { get; set; }
