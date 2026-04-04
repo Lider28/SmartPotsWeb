@@ -71,33 +71,48 @@ public static class TelemetryEndpoints
 
         group.MapGet("/history/{hardwareId:int}", async (AppDbContext db, int hardwareId, [FromQuery] string range = "DAY") =>
         {
-            var now = DateTime.UtcNow;
-            DateTime startDate;
-            DateTime endDate;
-
-            if (range.Equals("MONTH", StringComparison.CurrentCultureIgnoreCase))
+            TimeZoneInfo tz;
+            try
             {
-                startDate = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-                endDate = startDate.AddMonths(1);
+                tz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Kyiv");
             }
-            else if (range.Equals("WEEK", StringComparison.CurrentCultureIgnoreCase))
+            catch
             {
-                int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
-                startDate = DateTime.SpecifyKind(now.Date.AddDays(-diff), DateTimeKind.Utc);
-                endDate = startDate.AddDays(7);
+                tz = TimeZoneInfo.FindSystemTimeZoneById("FLE Standard Time");
+            }
+
+            var utcNow = DateTime.UtcNow;
+            var localNow = TimeZoneInfo.ConvertTimeFromUtc(utcNow, tz);
+
+            DateTime localStartDate;
+            DateTime localEndDate;
+
+            if (range.Equals("MONTH", StringComparison.OrdinalIgnoreCase))
+            {
+                localStartDate = new DateTime(localNow.Year, localNow.Month, 1);
+                localEndDate = localStartDate.AddMonths(1);
+            }
+            else if (range.Equals("WEEK", StringComparison.OrdinalIgnoreCase))
+            {
+                int diff = (7 + (localNow.DayOfWeek - DayOfWeek.Monday)) % 7;
+                localStartDate = localNow.Date.AddDays(-diff);
+                localEndDate = localStartDate.AddDays(7);
             }
             else
             {
-                startDate = DateTime.SpecifyKind(now.Date, DateTimeKind.Utc);
-                endDate = startDate.AddDays(1);
+                localStartDate = localNow.Date;
+                localEndDate = localStartDate.AddDays(1);
             }
 
-            var startOnlyDate = DateOnly.FromDateTime(startDate);
-            var endOnlyDate = DateOnly.FromDateTime(endDate);
+            var utcStartDate = TimeZoneInfo.ConvertTimeToUtc(localStartDate, tz);
+            var utcEndDate = TimeZoneInfo.ConvertTimeToUtc(localEndDate, tz);
 
-            var rawHistory = await db.HubTelemetries
+            var startFilter = DateOnly.FromDateTime(utcStartDate.AddDays(-1));
+            var endFilter = DateOnly.FromDateTime(utcEndDate.AddDays(1));
+
+            var rawData = await db.HubTelemetries
                 .AsNoTracking()
-                .Where(h => h.RecordDate >= startOnlyDate && h.RecordDate < endOnlyDate)
+                .Where(h => h.RecordDate >= startFilter && h.RecordDate <= endFilter)
                 .Where(h => h.Pots.Any(p => p.HardwareId == hardwareId))
                 .Select(h => new
                 {
@@ -111,34 +126,49 @@ public static class TelemetryEndpoints
                 })
                 .ToListAsync();
 
+            var historyWithTime = rawData
+                .Select(h => new
+                {
+                    Data = h,
+                    UtcTime = DateTime.SpecifyKind(h.RecordDate.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(h.MinuteOfDay))), DateTimeKind.Utc)
+                })
+                .Select(x => new
+                {
+                    x.Data,
+                    x.UtcTime,
+                    LocalTime = TimeZoneInfo.ConvertTimeFromUtc(x.UtcTime, tz)
+                })
+                .Where(x => x.UtcTime >= utcStartDate && x.UtcTime < utcEndDate)
+                .ToList();
+
             List<PotChartPoint> chartData;
 
-            if (range.Equals("DAY", StringComparison.CurrentCultureIgnoreCase))
+            if (range.Equals("DAY", StringComparison.OrdinalIgnoreCase))
             {
-                chartData = rawHistory.Select(h => new PotChartPoint(
-                    Timestamp: h.RecordDate.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(h.MinuteOfDay))).ToLocalTime(),
-                    HubTemp: h.Temp,
-                    HubHum: h.Hum,
-                    HubLux: h.Lux,
-                    Moisture: h.Pot?.Moisture ?? 0,
-                    TargetMoisture: h.Pot?.Target ?? 0,
-                    DailyLuxHours: h.DailyLuxHours
-                )).OrderBy(c => c.Timestamp).ToList();
+                chartData = [.. historyWithTime.Select(x => new PotChartPoint(
+            Timestamp: x.UtcTime,
+            HubTemp: x.Data.Temp,
+            HubHum: x.Data.Hum,
+            HubLux: x.Data.Lux,
+            Moisture: x.Data.Pot?.Moisture ?? 0,
+            TargetMoisture: x.Data.Pot?.Target ?? 0,
+            DailyLuxHours: x.Data.DailyLuxHours
+        )).OrderBy(c => c.Timestamp)];
             }
             else
             {
-                chartData = [.. rawHistory
-                    .GroupBy(h => h.RecordDate)
-                    .Select(group => new PotChartPoint(
-                        Timestamp: group.Key.ToDateTime(new TimeOnly(12, 0)).ToLocalTime(),
-                        HubTemp: group.Average(h => h.Temp),
-                        HubHum: group.Average(h => h.Hum),
-                        HubLux: (int)group.Average(h => h.Lux),
-                        Moisture: (int)group.Average(h => h.Pot?.Moisture ?? 0),
-                        TargetMoisture: (int)group.Average(h => h.Pot?.Target ?? 0),
-                        DailyLuxHours: group.Max(h => h.DailyLuxHours)
-                    ))
-                    .OrderBy(c => c.Timestamp)];
+                chartData = [.. historyWithTime
+            .GroupBy(x => x.LocalTime.Date)
+            .Select(group => new PotChartPoint(
+                Timestamp: TimeZoneInfo.ConvertTimeToUtc(group.Key, tz),
+                HubTemp: group.Average(x => x.Data.Temp),
+                HubHum: group.Average(x => x.Data.Hum),
+                HubLux: (int)group.Average(x => x.Data.Lux),
+                Moisture: (int)group.Average(x => x.Data.Pot?.Moisture ?? 0),
+                TargetMoisture: (int)group.Average(x => x.Data.Pot?.Target ?? 0),
+                DailyLuxHours: group.Max(x => x.Data.DailyLuxHours)
+            ))
+            .OrderBy(c => c.Timestamp)];
             }
 
             return Results.Ok(chartData);
