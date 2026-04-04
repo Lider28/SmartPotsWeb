@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Radzen;
 using SmartPotsWeb.Components;
+using SmartPotsWeb.Data;
 using SmartPotsWeb.Endpoints;
 using SmartPotsWeb.Models;
 using System.Text.Json.Serialization;

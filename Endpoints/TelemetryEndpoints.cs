@@ -13,31 +13,14 @@ public static class TelemetryEndpoints
         var group = app.MapGroup("/api/telemetry");
 
         group.MapPost("/", async (
-            AppDbContext db,
-            [FromBody] HubTelemetry incomingData,
-            IHubContext<TelemetryHub> hubContext,
-            TelemetryBuffer buffer) =>
+    AppDbContext db,
+    [FromBody] HubTelemetry incomingData,
+    IHubContext<TelemetryHub> hubContext,
+    TelemetryBuffer buffer) =>
         {
             var now = DateTime.UtcNow;
-            var currentSeason = SeasonHelper.GetCurrentSeason();
             incomingData.RecordDate = DateOnly.FromDateTime(now);
             incomingData.MinuteOfDay = now.Hour * 60 + now.Minute;
-
-            foreach (var pt in incomingData.Pots)
-            {
-                var physicalPot = await db.Pots
-                    .Include(p => p.Profile)
-                    .FirstOrDefaultAsync(p => p.HardwareId == pt.HardwareId);
-
-                if (physicalPot != null)
-                {
-                    var settings = physicalPot.Profile.GetCurrentSettings(currentSeason);
-                    pt.Target = settings.SoilMoisture;
-                    pt.TargetAir = settings.AirHumidity;
-                    pt.TargetLux = settings.LightLux;
-                    pt.PlantProfileId = physicalPot.PlantProfileId;
-                }
-            }
 
             var currentState = await db.CurrentHubStates.FirstOrDefaultAsync(s => s.Id == 1);
             if (currentState == null)
@@ -62,16 +45,12 @@ public static class TelemetryEndpoints
                 await hubContext.Clients.All.SendAsync("ReceiveTelemetryUpdate", incomingData);
             }
 
-            buffer.AddReading(incomingData);
+            var readyHourlyRecord = buffer.AddAndCheckIfHourChanged(incomingData);
 
-            if (now.Minute == 0 && now.Second < 10 && !TelemetryHub.HasViewers)
+            if (readyHourlyRecord != null)
             {
-                var hourlyAverage = buffer.CalculateAverageAndClear();
-                if (hourlyAverage != null)
-                {
-                    db.HubTelemetries.Add(hourlyAverage);
-                    await db.SaveChangesAsync();
-                }
+                db.HubTelemetries.Add(readyHourlyRecord);
+                await db.SaveChangesAsync();
             }
 
             var responseForEsp = new
@@ -88,7 +67,7 @@ public static class TelemetryEndpoints
             };
 
             return Results.Ok(responseForEsp);
-        });
+        }); ;
 
 
         group.MapGet("/history/{hardwareId:int}", async (AppDbContext db, int hardwareId, [FromQuery] int hours = 24) =>
