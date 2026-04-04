@@ -209,6 +209,7 @@ public static class TelemetryEndpoints
             {
                 pot.Name = dto.Name ?? pot.Name;
 
+                pot.PhotoUrl = dto.PhotoUrl ?? pot.PhotoUrl;
                 pot.Profile.SpeciesName = dto.Profile.SpeciesName ?? pot.Profile.SpeciesName;
                 pot.Profile.Mode = (SeasonalityMode)dto.Profile.Mode;
 
