@@ -299,16 +299,27 @@ public static class TelemetryEndpoints
             }
         });
 
-        app.MapPost("/api/pots/{hardwareId:int}/image", async (int hardwareId, IFormFile file, AppDbContext db, IWebHostEnvironment env) =>
+        app.MapPost("/api/pots/{hardwareId:int}/image", async (
+    int hardwareId,
+    [FromForm] IFormFile file,
+    AppDbContext db,
+    IWebHostEnvironment env) =>
         {
-            if (file == null || file.Length == 0)
-                return Results.BadRequest("Файл порожній");
+            Console.WriteLine($"Запит на фото для горщика: {hardwareId}");
 
-            var pot = await db.Pots.Include(p => p.Profile).FirstOrDefaultAsync(p => p.HardwareId == hardwareId);
+            if (file == null || file.Length == 0)
+            {
+                Console.WriteLine("Файл прийшов як NULL або порожній");
+                return Results.BadRequest("Файл порожній або не знайдено у формі");
+            }
+
+            Console.WriteLine($"Отримано файл: {file.FileName}, розмір: {file.Length}");
+
+            var pot = await db.Pots.FirstOrDefaultAsync(p => p.HardwareId == hardwareId);
             if (pot == null) return Results.NotFound();
 
             var uploadsFolder = Path.Combine(env.WebRootPath, "images", "pots");
-            Directory.CreateDirectory(uploadsFolder);
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
 
             var fileExtension = Path.GetExtension(file.FileName);
             var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
@@ -320,11 +331,12 @@ public static class TelemetryEndpoints
             }
 
             var relativeUrl = $"/images/pots/{uniqueFileName}";
-
             pot.PhotoUrl = relativeUrl;
+
             await db.SaveChangesAsync();
+            Console.WriteLine($"Фото збережено: {relativeUrl}");
 
             return Results.Ok(new { url = relativeUrl });
-        });
+        }).DisableAntiforgery();
     }
 }
