@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<HubTelemetry> HubTelemetries { get; set; }
     public DbSet<PotTelemetry> PotTelemetries { get; set; }
     public DbSet<CurrentHubState> CurrentHubStates { get; set; }
+    public DbSet<DeviceToken> DeviceTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -483,6 +483,7 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
+firebase-key.json
 
 !wwwroot/css/app.css
 !wwwroot/css/app.min.css

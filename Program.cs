@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Builder.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Radzen;
 using SmartPotsWeb.Components;
@@ -5,8 +6,15 @@ using SmartPotsWeb.Data;
 using SmartPotsWeb.Endpoints;
 using SmartPotsWeb.Models;
 using System.Text.Json.Serialization;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 
 var builder = WebApplication.CreateBuilder(args);
+
+FirebaseApp.Create(new AppOptions()
+{
+    Credential = CredentialFactory.FromFile<ServiceAccountCredential>("firebase-key.json").ToGoogleCredential()
+});
 
 builder.Services.AddSignalR(options =>
 {
@@ -38,6 +46,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddRadzenComponents();
 builder.Services.AddSingleton<TelemetryBuffer>();
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 

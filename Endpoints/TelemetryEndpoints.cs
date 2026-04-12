@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SmartPotsWeb.Data;
 using SmartPotsWeb.Models;
+using FirebaseAdmin.Messaging;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace SmartPotsWeb.Endpoints;
 
@@ -13,10 +15,11 @@ public static class TelemetryEndpoints
         var group = app.MapGroup("/api/telemetry");
 
         group.MapPost("/", async (
-    AppDbContext db,
-    [FromBody] HubTelemetry incomingData,
-    IHubContext<TelemetryHub> hubContext,
-    TelemetryBuffer buffer) =>
+             AppDbContext db,
+             [FromBody] HubTelemetry incomingData,
+             IHubContext<TelemetryHub> hubContext,
+             TelemetryBuffer buffer,
+             IMemoryCache cache) =>
         {
             var now = DateTime.UtcNow;
             incomingData.RecordDate = DateOnly.FromDateTime(now);
@@ -39,11 +42,67 @@ public static class TelemetryEndpoints
             currentState.LastUpdatedAt = now;
 
             await db.SaveChangesAsync();
+            try
+            {
+                var deviceTokens = await db.DeviceTokens.Select(d => d.Token).ToListAsync();
+
+                if (deviceTokens.Any())
+                {
+                    foreach (var pot in incomingData.Pots)
+                    {
+                        if (pot.Moisture < (pot.Target - 5))
+                        {
+                            string cacheKey = $"LastPushSent_Pot_{pot.HardwareId}";
+
+                            if (!cache.TryGetValue(cacheKey, out _))
+                            {
+                                var dbPot = await db.Pots.Include(p => p.Profile)
+                                    .FirstOrDefaultAsync(p => p.HardwareId == pot.HardwareId);
+
+                                string plantName = dbPot?.Name ?? dbPot?.Profile?.SpeciesName ?? $"Горщик {pot.HardwareId}";
+
+                                var message = new MulticastMessage()
+                                {
+                                    Tokens = deviceTokens,
+                                    Data = new Dictionary<string, string>()
+                                    {
+                                        { "potName", plantName },
+                                        { "current", pot.Moisture.ToString() },
+                                        { "target", pot.Target.ToString() }
+                                    }
+                                };
+
+                                var fcmResponse = await FirebaseMessaging.DefaultInstance.SendEachForMulticastAsync(message);
+                                Console.WriteLine($"[FCM] Пуш для {plantName} відправлено. Успіх: {fcmResponse.SuccessCount}, Помилок: {fcmResponse.FailureCount}");
+                                cache.Set(cacheKey, true, TimeSpan.FromHours(1));
+
+                                if (fcmResponse.FailureCount > 0)
+                                {
+                                    for (int i = 0; i < fcmResponse.Responses.Count; i++)
+                                    {
+                                        if (!fcmResponse.Responses[i].IsSuccess)
+                                        {
+                                            var badToken = deviceTokens[i];
+                                            var tokenToRemove = await db.DeviceTokens.FirstOrDefaultAsync(t => t.Token == badToken);
+                                            if (tokenToRemove != null) db.DeviceTokens.Remove(tokenToRemove);
+                                        }
+                                    }
+                                    await db.SaveChangesAsync();
+                                }
+                            }
+                        }
+                        else if (pot.Moisture >= pot.Target)
+                            cache.Remove($"LastPushSent_Pot_{pot.HardwareId}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка відправки FCM: {ex.Message}");
+            }
 
             if (TelemetryHub.HasViewers)
-            {
                 await hubContext.Clients.All.SendAsync("ReceiveTelemetryUpdate", incomingData);
-            }
 
             var readyHourlyRecord = buffer.AddAndCheckIfHourChanged(incomingData);
 
@@ -67,7 +126,7 @@ public static class TelemetryEndpoints
             };
 
             return Results.Ok(responseForEsp);
-        }); ;
+        });
 
         group.MapGet("/history/{hardwareId:int}", async (AppDbContext db, int hardwareId, [FromQuery] string range = "DAY") =>
         {

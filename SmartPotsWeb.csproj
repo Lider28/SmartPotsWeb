@@ -13,7 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="BuildWebCompiler" Version="1.12.405" Condition="'$(OS)' == 'Windows_NT'"/>
+    <PackageReference Include="BuildWebCompiler" Version="1.12.405" Condition="'$(OS)' == 'Windows_NT'" />
+    <PackageReference Include="FirebaseAdmin" Version="3.5.0" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
       <PrivateAssets>all</PrivateAssets>
